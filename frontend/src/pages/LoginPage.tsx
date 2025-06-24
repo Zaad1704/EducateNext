@@ -1,42 +1,32 @@
 // frontend/src/pages/LoginPage.tsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate for redirection
+import { useNavigate } from 'react-router-dom';
+import axiosInstance from '../api/axiosInstance'; // Import axiosInstance
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState(''); // To display success or error messages
+  const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(''); // Clear previous messages
+    setMessage('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', { // Ensure this URL matches your backend
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      // Use axiosInstance instead of fetch
+      const response = await axiosInstance.post('/auth/login', { email, password });
 
-      const data = await response.json();
+      setMessage(response.data.message);
+      // Store the JWT token in local storage
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
 
-      if (response.ok) {
-        setMessage(data.message);
-        // Store the JWT token in local storage
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user)); // Store user details too
-
-        // Redirect to the dashboard
-        setTimeout(() => navigate('/dashboard'), 1000);
-      } else {
-        setMessage(data.message || 'Login failed');
-      }
-    } catch (error) {
+      // Redirect to the dashboard
+      setTimeout(() => navigate('/dashboard'), 1000);
+    } catch (error: any) {
       console.error('Error during login:', error);
-      setMessage('Network error or server unreachable');
+      setMessage(error.response?.data?.message || 'Login failed');
     }
   };
 
