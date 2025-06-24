@@ -1,5 +1,6 @@
 // frontend/src/pages/StudentsPage.tsx
 import React, { useState, useEffect } from 'react';
+import axiosInstance from '../api/axiosInstance'; // Import axiosInstance
 
 // Define a type for Student for better type safety
 interface Student {
@@ -11,7 +12,6 @@ interface Student {
     _id: string;
     name: string;
   };
-  // Add other fields you might want to display
 }
 
 const StudentsPage: React.FC = () => {
@@ -27,37 +27,21 @@ const StudentsPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const token = localStorage.getItem('token'); // Get the JWT token
-        if (!token) {
-          setError('Authentication token not found. Please log in.');
-          setLoading(false);
-          return;
-        }
-
-        const response = await fetch('http://localhost:5000/api/students', { // Ensure URL matches your backend
-          headers: {
-            'x-auth-token': token, // Send the token in the header
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to fetch students.');
-        }
-
-        const data: Student[] = await response.json();
-        setStudents(data);
+        // Use axiosInstance.get('/students') - token is automatically attached by interceptor
+        const response = await axiosInstance.get('/students');
+        setStudents(response.data);
       } catch (err: any) {
         console.error('Error fetching students:', err);
-        setError(err.message || 'Failed to load students.');
+        // Error handling via interceptor will redirect on 401,
+        // otherwise display specific message
+        setError(err.response?.data?.message || 'Failed to load students.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchStudents();
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
   // Filter students based on search term and admission year
   const filteredStudents = students.filter((student) => {
@@ -78,15 +62,12 @@ const StudentsPage: React.FC = () => {
     return <div className="text-center p-4 text-red-600">Error: {error}</div>;
   }
 
-  // Generate years for the dropdown (e.g., current year +/- 5 years)
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
-
 
   return (
     <div>
       <h1 className="text-xl font-bold mb-4">Students</h1>
-      {/* Filter/Search */}
       <div className="mb-4 flex flex-wrap gap-2">
         <input
           type="text"
@@ -106,7 +87,6 @@ const StudentsPage: React.FC = () => {
           ))}
         </select>
       </div>
-      {/* Student List Table */}
       {filteredStudents.length === 0 ? (
         <p className="text-center text-gray-600">No students found.</p>
       ) : (
@@ -118,7 +98,6 @@ const StudentsPage: React.FC = () => {
                 <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Classroom</th>
                 <th className="p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission Year</th>
-                {/* Add more headers for other student fields if needed */}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -128,7 +107,6 @@ const StudentsPage: React.FC = () => {
                   <td className="p-3 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
                   <td className="p-3 whitespace-nowrap text-sm text-gray-900">{student.classroomId ? student.classroomId.name : 'N/A'}</td>
                   <td className="p-3 whitespace-nowrap text-sm text-gray-900">{student.admissionYear}</td>
-                  {/* Add more cells for other student fields if needed */}
                 </tr>
               ))}
             </tbody>
