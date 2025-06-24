@@ -1,9 +1,10 @@
 // backend/controllers/authController.ts
 import { Request, Response } from 'express';
-import User from '../models/User'; // Import the User model
-import bcrypt from 'bcryptjs'; // We will use bcryptjs for password hashing
-import Institution from '../models/Institution'; // Import Institution model for validation/linking
-import { Types } from 'mongoose'; // For ObjectId type
+import User from '../models/User';
+import bcrypt from 'bcryptjs';
+import Institution from '../models/Institution';
+import { Types } from 'mongoose';
+import jwt from 'jsonwebtoken'; // Import jsonwebtoken
 
 export const registerUser = async (req: Request, res: Response) => {
   const { name, email, password, role, institutionId } = req.body;
@@ -45,18 +46,34 @@ export const registerUser = async (req: Request, res: Response) => {
 
     await user.save();
 
-    // For now, let's just send a success message.
-    // In a real app, you'd generate a JWT token here and send it back.
-    res.status(201).json({
-      message: 'User registered successfully',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        institutionId: user.institutionId,
-      },
-    });
+    // Generate JWT token upon successful registration (optional, but good practice)
+    const payload = {
+        user: {
+            id: user._id,
+            role: user.role,
+            institutionId: user.institutionId,
+        },
+    };
+
+    jwt.sign(
+        payload,
+        process.env.JWT_SECRET || 'supersecretjwtkey', // Use JWT_SECRET from env or a fallback
+        { expiresIn: '1h' }, // Token expires in 1 hour
+        (err, token) => {
+            if (err) throw err;
+            res.status(201).json({
+                message: 'User registered successfully',
+                token,
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role,
+                    institutionId: user.institutionId,
+                },
+            });
+        }
+    );
 
   } catch (error: any) {
     console.error('Error during user registration:', error.message);
@@ -65,6 +82,57 @@ export const registerUser = async (req: Request, res: Response) => {
 };
 
 export const loginUser = async (req: Request, res: Response) => {
-  // Login user implementation (will be implemented next)
-  res.json({ message: "Login user endpoint" }); //
+  const { email, password } = req.body;
+
+  // Basic validation
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Please enter all required fields: email and password' });
+  }
+
+  try {
+    // Check if user exists
+    let user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Compare provided password with hashed password in database
+    const isMatch = await bcrypt.compare(password, user.password || ''); // user.password might be undefined if not set
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Create JWT payload
+    const payload = {
+      user: {
+        id: user._id,
+        role: user.role,
+        institutionId: user.institutionId,
+      },
+    };
+
+    // Sign the token
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET || 'supersecretjwtkey', // Use JWT_SECRET from env or a fallback
+      { expiresIn: '1h' }, // Token expires in 1 hour
+      (err, token) => {
+        if (err) throw err;
+        res.json({
+          message: 'Logged in successfully',
+          token,
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            institutionId: user.institutionId,
+          },
+        });
+      }
+    );
+  } catch (error: any) {
+    console.error('Error during user login:', error.message);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
