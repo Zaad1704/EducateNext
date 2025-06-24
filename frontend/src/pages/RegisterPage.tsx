@@ -1,46 +1,37 @@
 // frontend/src/pages/RegisterPage.tsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate for redirection
+import { useNavigate } from 'react-router-dom';
+import axiosInstance from '../api/axiosInstance'; // Import axiosInstance
 
 const RegisterPage: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState(''); // To display success or error messages
+  const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(''); // Clear previous messages
+    setMessage('');
 
     // For initial registration, we'll assume an Administrator role and a dummy institution ID.
     // In a real application, institutionId would be dynamic (e.g., after institution creation)
     // and roles would be managed by a Super Admin or through a more complex registration flow.
     const institutionId = '60c72b2f9a1b4d0015b8e1a0'; // Replace with a valid/dummy institution ID or dynamic input
-    const role = 'Administrator'; // Assuming initial registration is for an Administrator
+    const role = 'Administrator';
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', { // Ensure this URL matches your backend
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, email, password, role, institutionId }),
-      });
+      // Use axiosInstance instead of fetch
+      const response = await axiosInstance.post('/auth/register', { name, email, password, role, institutionId });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage(data.message + '. Redirecting to login...');
-        // Optionally store the token if you want to auto-login
-        // localStorage.setItem('token', data.token);
-        setTimeout(() => navigate('/login'), 2000); // Redirect to login page after 2 seconds
-      } else {
-        setMessage(data.message || 'Registration failed');
-      }
-    } catch (error) {
+      setMessage(response.data.message + '. Redirecting to login...');
+      // Optionally store the token if you want to auto-login
+      // localStorage.setItem('token', response.data.token);
+      // localStorage.setItem('user', JSON.stringify(response.data.user));
+      setTimeout(() => navigate('/login'), 2000);
+    } catch (error: any) {
       console.error('Error during registration:', error);
-      setMessage('Network error or server unreachable');
+      setMessage(error.response?.data?.message || 'Registration failed');
     }
   };
 
