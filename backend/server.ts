@@ -1,3 +1,4 @@
+// backend/server.ts
 import express from 'express';
 import dotenv from 'dotenv';
 import { connectDB } from './config/database';
@@ -11,6 +12,8 @@ import classroomRoutes from './routes/classroomRoutes';
 import subjectRoutes from './routes/subjectRoutes';
 import enrollmentRoutes from './routes/enrollmentRoutes';
 import attendanceRoutes from './routes/attendanceRoutes';
+import feeRoutes from './routes/feeRoutes'; // Import new fee routes
+import paymentRoutes from './routes/paymentRoutes'; // Import new payment routes
 
 dotenv.config();
 connectDB();
@@ -28,6 +31,8 @@ app.use('/api/classrooms', classroomRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/fees', feeRoutes); // Add fee routes
+app.use('/api/payments', paymentRoutes); // Add payment routes
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
