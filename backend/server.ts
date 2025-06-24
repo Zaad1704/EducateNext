@@ -12,8 +12,9 @@ import classroomRoutes from './routes/classroomRoutes';
 import subjectRoutes from './routes/subjectRoutes';
 import enrollmentRoutes from './routes/enrollmentRoutes';
 import attendanceRoutes from './routes/attendanceRoutes';
-import feeRoutes from './routes/feeRoutes'; // Import new fee routes
-import paymentRoutes from './routes/paymentRoutes'; // Import new payment routes
+import feeRoutes from './routes/feeRoutes';
+import paymentRoutes from './routes/paymentRoutes';
+import expenseRoutes from './routes/expenseRoutes'; // Import new expense routes
 
 dotenv.config();
 connectDB();
@@ -31,8 +32,9 @@ app.use('/api/classrooms', classroomRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/attendance', attendanceRoutes);
-app.use('/api/fees', feeRoutes); // Add fee routes
-app.use('/api/payments', paymentRoutes); // Add payment routes
+app.use('/api/fees', feeRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/expenses', expenseRoutes); // Add expense routes
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
