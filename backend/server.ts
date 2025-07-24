@@ -23,6 +23,7 @@ import evaluationRoutes from './routes/evaluationRoutes';
 import idCardRoutes from './routes/idCardRoutes';
 import attendanceSessionRoutes from './routes/attendanceSessionRoutes';
 import cmsRoutes from './routes/cmsRoutes';
+import analyticsRoutes from './routes/analyticsRoutes';
 
 dotenv.config();
 connectDB();
@@ -51,6 +52,7 @@ app.use('/api/evaluations', evaluationRoutes);
 app.use('/api/id-cards', idCardRoutes);
 app.use('/api/attendance/sessions', attendanceSessionRoutes);
 app.use('/api/cms', cmsRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
