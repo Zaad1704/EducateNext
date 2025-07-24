@@ -1,0 +1,32 @@
+{
+  "name": "educatenext-student-app",
+  "version": "1.0.0",
+  "main": "expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "expo": "~49.0.0",
+    "react": "18.2.0",
+    "react-native": "0.72.0",
+    "react-navigation": "^6.0.0",
+    "@react-navigation/native": "^6.1.0",
+    "@react-navigation/stack": "^6.3.0",
+    "react-native-qrcode-svg": "^6.2.0",
+    "react-native-svg": "^13.4.0",
+    "react-native-async-storage": "^1.19.0",
+    "axios": "^1.6.0",
+    "react-native-paper": "^5.10.0",
+    "react-native-vector-icons": "^10.0.0",
+    "react-native-wallet-manager": "^1.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@types/react": "~18.2.0",
+    "@types/react-native": "~0.72.0",
+    "typescript": "^5.1.0"
+  }
+}

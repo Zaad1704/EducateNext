@@ -20,6 +20,8 @@ import gradeRoutes from './routes/gradeRoutes';
 import assignmentRoutes from './routes/assignmentRoutes';
 import reportCardRoutes from './routes/reportCardRoutes';
 import evaluationRoutes from './routes/evaluationRoutes';
+import idCardRoutes from './routes/idCardRoutes';
+import attendanceSessionRoutes from './routes/attendanceSessionRoutes';
 
 dotenv.config();
 connectDB();
@@ -45,6 +47,8 @@ app.use('/api/grades', gradeRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/reports', reportCardRoutes);
 app.use('/api/evaluations', evaluationRoutes);
+app.use('/api/id-cards', idCardRoutes);
+app.use('/api/attendance/sessions', attendanceSessionRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
