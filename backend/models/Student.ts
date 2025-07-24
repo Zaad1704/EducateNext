@@ -16,6 +16,22 @@ export interface IStudent extends Document {
   govtIdNumber?: string;
   govtIdImageUrlFront?: string;
   govtIdImageUrlBack?: string;
+  
+  // Enhanced Academic Information
+  academic: {
+    currentGPA: number;
+    cumulativeGPA: number;
+    currentRank: number;
+    academicStatus: 'excellent' | 'good' | 'average' | 'below_average' | 'at_risk';
+    reportCards: Types.ObjectId[];
+  };
+  
+  // QR & Digital Features
+  qr: {
+    qrCodeId?: Types.ObjectId;
+    idCardId?: Types.ObjectId;
+    digitalWalletAdded: boolean;
+  };
 }
 
 const StudentSchema = new Schema<IStudent>(
@@ -48,6 +64,26 @@ const StudentSchema = new Schema<IStudent>(
     govtIdNumber: { type: String },
     govtIdImageUrlFront: { type: String },
     govtIdImageUrlBack: { type: String },
+    
+    // Enhanced Academic Information
+    academic: {
+      currentGPA: { type: Number, default: 0 },
+      cumulativeGPA: { type: Number, default: 0 },
+      currentRank: { type: Number, default: 0 },
+      academicStatus: { 
+        type: String, 
+        enum: ['excellent', 'good', 'average', 'below_average', 'at_risk'], 
+        default: 'average' 
+      },
+      reportCards: [{ type: Schema.Types.ObjectId, ref: 'ReportCard' }],
+    },
+    
+    // QR & Digital Features
+    qr: {
+      qrCodeId: { type: Schema.Types.ObjectId, ref: 'QRCode' },
+      idCardId: { type: Schema.Types.ObjectId, ref: 'IDCard' },
+      digitalWalletAdded: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );

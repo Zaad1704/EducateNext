@@ -6,11 +6,12 @@ import Classroom from '../models/Classroom'; // For validation
 import { Types } from 'mongoose';
 
 export const markAttendance = async (req: Request, res: Response) => {
-  const { studentId, classroomId, date, status } = req.body;
-  const institutionId = req.user?.institutionId; // Get institutionId from authenticated user
+  const { studentId, classroomId, date, status, scanType, scanMethod, deviceId } = req.body;
+  const teacherId = req.user?.id;
+  const institutionId = req.user?.institutionId;
 
-  if (!studentId || !classroomId || !date || !status || !institutionId) {
-    return res.status(400).json({ message: 'Please provide studentId, classroomId, date, status, and ensure user is authenticated.' });
+  if (!studentId || !classroomId || !date || !status || !institutionId || !teacherId) {
+    return res.status(400).json({ message: 'Please provide all required fields and ensure user is authenticated.' });
   }
 
   // Validate status enum
