@@ -15,7 +15,11 @@ import attendanceRoutes from './routes/attendanceRoutes';
 import feeRoutes from './routes/feeRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import expenseRoutes from './routes/expenseRoutes';
-import qrRoutes from './routes/qrRoutes'; // Import QR routes
+import qrRoutes from './routes/qrRoutes';
+import gradeRoutes from './routes/gradeRoutes';
+import assignmentRoutes from './routes/assignmentRoutes';
+import reportCardRoutes from './routes/reportCardRoutes';
+import evaluationRoutes from './routes/evaluationRoutes';
 
 dotenv.config();
 connectDB();
@@ -36,7 +40,11 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/fees', feeRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/expenses', expenseRoutes);
-app.use('/api/qr', qrRoutes); // Add QR routes
+app.use('/api/qr', qrRoutes);
+app.use('/api/grades', gradeRoutes);
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/reports', reportCardRoutes);
+app.use('/api/evaluations', evaluationRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

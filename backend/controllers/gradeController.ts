@@ -157,3 +157,67 @@ export const calculateStudentGPA = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+export const bulkCreateGrades = async (req: Request, res: Response) => {
+  const { grades } = req.body;
+  const teacherId = req.user?.id;
+  const institutionId = req.user?.institutionId;
+
+  try {
+    const gradePromises = grades.map(async (gradeData: any) => {
+      const percentage = (gradeData.obtainedMarks / gradeData.maxMarks) * 100;
+      const grade = calculateGrade(percentage);
+      const gpa = calculateGPA(percentage);
+
+      return new Grade({
+        ...gradeData,
+        teacherId: new Types.ObjectId(teacherId),
+        institutionId: new Types.ObjectId(institutionId),
+        percentage,
+        grade,
+        gpa,
+        date: new Date(gradeData.date),
+      });
+    });
+
+    const createdGrades = await Promise.all(gradePromises);
+    await Grade.insertMany(createdGrades);
+
+    res.status(201).json({
+      message: 'Bulk grades created successfully',
+      count: createdGrades.length,
+    });
+
+  } catch (error: any) {
+    console.error('Error creating bulk grades:', error.message);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+export const getClassGrades = async (req: Request, res: Response) => {
+  const { classroomId } = req.params;
+  const { academicYear, semester, subjectId } = req.query;
+  const institutionId = req.user?.institutionId;
+
+  try {
+    const query: any = {
+      classroomId: new Types.ObjectId(classroomId),
+      institutionId: new Types.ObjectId(institutionId),
+    };
+
+    if (academicYear) query.academicYear = academicYear;
+    if (semester) query.semester = semester;
+    if (subjectId) query.subjectId = new Types.ObjectId(subjectId as string);
+
+    const grades = await Grade.find(query)
+      .populate('studentId', 'name generatedId')
+      .populate('subjectId', 'name code')
+      .sort({ date: -1 });
+
+    res.status(200).json(grades);
+
+  } catch (error: any) {
+    console.error('Error fetching class grades:', error.message);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
