@@ -33,6 +33,26 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     next();
   } catch (error) {
     console.error('Token verification failed:', error);
-    res.status(401).json({ message: 'Token is not valid' });
+    return res.status(401).json({ message: 'Token is not valid' });
   }
 }
+
+// Alias for backward compatibility
+export const protect = authMiddleware;
+export const authenticateToken = authMiddleware;
+
+// Role-based authorization middleware
+export const authorize = (roles: string | string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+
+    const allowedRoles = Array.isArray(roles) ? roles : [roles];
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    next();
+  };
+};

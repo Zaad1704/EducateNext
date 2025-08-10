@@ -12,7 +12,7 @@ export interface IPayment extends Document {
   receiptUrl?: string; // Optional: URL to an uploaded receipt document
 }
 
-const PaymentSchema = new new Schema<IPayment>(
+const PaymentSchema = new Schema<IPayment>(
   {
     feeBillId: { type: Schema.Types.ObjectId, ref: 'FeeBill', required: true },
     studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true },

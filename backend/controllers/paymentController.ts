@@ -103,3 +103,153 @@ export const getPayments = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+export const createPayment = async (req: Request, res: Response) => {
+  return recordPayment(req, res);
+};
+
+export const getPaymentById = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const institutionId = req.user?.institutionId;
+
+  if (!institutionId) {
+    return res.status(401).json({ message: 'Not authorized: Institution ID not found in token.' });
+  }
+
+  try {
+    if (!Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid payment ID format' });
+    }
+
+    const payment = await Payment.findOne({ 
+      _id: id, 
+      institutionId: new Types.ObjectId(institutionId) 
+    })
+    .populate('studentId', 'name generatedId')
+    .populate('feeBillId', 'amount dueDate status');
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
+    res.status(200).json(payment);
+  } catch (error: any) {
+    console.error('Error getting payment:', error.message);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+export const updatePayment = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const institutionId = req.user?.institutionId;
+  const updateData = req.body;
+
+  if (!institutionId) {
+    return res.status(401).json({ message: 'Not authorized: Institution ID not found in token.' });
+  }
+
+  try {
+    if (!Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid payment ID format' });
+    }
+
+    const payment = await Payment.findOneAndUpdate(
+      { _id: id, institutionId: new Types.ObjectId(institutionId) },
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('studentId', 'name generatedId')
+     .populate('feeBillId', 'amount dueDate status');
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
+    res.status(200).json({
+      message: 'Payment updated successfully',
+      payment
+    });
+  } catch (error: any) {
+    console.error('Error updating payment:', error.message);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+export const deletePayment = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const institutionId = req.user?.institutionId;
+
+  if (!institutionId) {
+    return res.status(401).json({ message: 'Not authorized: Institution ID not found in token.' });
+  }
+
+  try {
+    if (!Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid payment ID format' });
+    }
+
+    const payment = await Payment.findOneAndDelete({ 
+      _id: id, 
+      institutionId: new Types.ObjectId(institutionId) 
+    });
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
+    res.status(200).json({ message: 'Payment deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting payment:', error.message);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+export const getPaymentStats = async (req: Request, res: Response) => {
+  const institutionId = req.user?.institutionId;
+  const { startDate, endDate } = req.query;
+
+  if (!institutionId) {
+    return res.status(401).json({ message: 'Not authorized: Institution ID not found in token.' });
+  }
+
+  try {
+    const query: any = { institutionId: new Types.ObjectId(institutionId) };
+    
+    if (startDate && endDate) {
+      query.paymentDate = {
+        $gte: new Date(startDate as string),
+        $lte: new Date(endDate as string)
+      };
+    }
+
+    const stats = await Payment.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          totalPayments: { $sum: 1 },
+          totalAmount: { $sum: '$amountPaid' },
+          averageAmount: { $avg: '$amountPaid' }
+        }
+      }
+    ]);
+
+    const paymentMethods = await Payment.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: '$paymentMethod',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$amountPaid' }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      summary: stats[0] || { totalPayments: 0, totalAmount: 0, averageAmount: 0 },
+      paymentMethods
+    });
+  } catch (error: any) {
+    console.error('Error getting payment stats:', error.message);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

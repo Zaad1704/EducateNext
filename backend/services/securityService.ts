@@ -59,7 +59,7 @@ export class SecurityService {
   generateSecureToken(payload: any, expiresIn: string = '24h'): string {
     const secret = process.env.JWT_SECRET || 'fallback-secret';
     return jwt.sign(payload, secret, { 
-      expiresIn,
+      expiresIn: expiresIn as any,
       issuer: 'educatenext',
       audience: 'educatenext-users'
     });

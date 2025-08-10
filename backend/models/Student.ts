@@ -6,6 +6,7 @@ export interface IStudent extends Document {
   admissionYear: number;
   institutionId: Types.ObjectId;
   classroomId: Types.ObjectId;
+  department?: string;
   contactEmail: string;
   contactPhone?: string;
   dateOfBirth: Date;
@@ -41,6 +42,7 @@ const StudentSchema = new Schema<IStudent>(
     admissionYear: { type: Number, required: true },
     institutionId: { type: Schema.Types.ObjectId, ref: 'Institution', required: true },
     classroomId: { type: Schema.Types.ObjectId, ref: 'Classroom', required: true },
+    department: { type: String },
     contactEmail: { type: String, required: true },
     contactPhone: { type: String },
     dateOfBirth: { type: Date, required: true },

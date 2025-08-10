@@ -4,6 +4,10 @@ export interface ITeacher extends Document {
   userId: Types.ObjectId;
   employeeId: string;
   assignedClassroomIds: Types.ObjectId[];
+  institutionId: Types.ObjectId;
+  photoUrl?: string;
+  qualifications?: string[];
+  bio?: string;
   
   // Performance & Evaluation
   performance: {
@@ -26,6 +30,10 @@ const TeacherSchema = new Schema<ITeacher>(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     employeeId: { type: String, required: true, unique: true },
     assignedClassroomIds: [{ type: Schema.Types.ObjectId, ref: 'Classroom' }],
+    institutionId: { type: Schema.Types.ObjectId, ref: 'Institution', required: true },
+    photoUrl: { type: String },
+    qualifications: [{ type: String }],
+    bio: { type: String },
     
     // Performance & Evaluation
     performance: {

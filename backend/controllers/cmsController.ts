@@ -221,9 +221,9 @@ export const syncStaffData = async (req: Request, res: Response) => {
     // Update staff data
     const updatedTeachers = teachers.map(teacher => ({
       id: teacher._id,
-      name: teacher.userId.name,
+      name: (teacher.userId as any)?.name || 'Unknown',
       photo: teacher.photoUrl || '/default-avatar.png',
-      subject: teacher.assignedClassroomIds.map(c => c.name).join(', '),
+      subject: (teacher.assignedClassroomIds as any[]).map(c => (c as any)?.name || '').join(', '),
       qualifications: teacher.qualifications || [],
       bio: teacher.bio || ''
     }));

@@ -6,6 +6,12 @@ export interface IInstitution extends Document {
   status: 'active' | 'inactive' | 'pending_deletion';
   type: 'school' | 'college' | 'university';
   
+  contact: {
+    address?: string;
+    phone?: string;
+    email?: string;
+  };
+  
   branding: {
     companyName: string;
     companyLogoUrl: string;
@@ -46,6 +52,11 @@ const InstitutionSchema = new Schema<IInstitution>(
       type: String,
       enum: ['school', 'college', 'university'],
       default: 'school',
+    },
+    contact: {
+      address: { type: String },
+      phone: { type: String },
+      email: { type: String },
     },
     branding: {
       companyName: { type: String, required: true },

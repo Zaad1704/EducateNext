@@ -60,8 +60,11 @@ export const registerUser = async (req: Request, res: Response) => {
         process.env.JWT_SECRET || 'supersecretjwtkey', // Use JWT_SECRET from env or a fallback
         { expiresIn: '1h' }, // Token expires in 1 hour
         (err, token) => {
-            if (err) throw err;
-            res.status(201).json({
+            if (err) {
+                console.error('JWT signing error:', err);
+                return res.status(500).json({ message: 'Error generating token' });
+            }
+            return res.status(201).json({
                 message: 'User registered successfully',
                 token,
                 user: {
@@ -77,7 +80,7 @@ export const registerUser = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error('Error during user registration:', error.message);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -117,8 +120,11 @@ export const loginUser = async (req: Request, res: Response) => {
       process.env.JWT_SECRET || 'supersecretjwtkey', // Use JWT_SECRET from env or a fallback
       { expiresIn: '1h' }, // Token expires in 1 hour
       (err, token) => {
-        if (err) throw err;
-        res.json({
+        if (err) {
+          console.error('JWT signing error:', err);
+          return res.status(500).json({ message: 'Error generating token' });
+        }
+        return res.json({
           message: 'Logged in successfully',
           token,
           user: {
@@ -133,6 +139,6 @@ export const loginUser = async (req: Request, res: Response) => {
     );
   } catch (error: any) {
     console.error('Error during user login:', error.message);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

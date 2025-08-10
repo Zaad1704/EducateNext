@@ -156,15 +156,15 @@ export const generateTeacherPerformanceAnalytics = async (
       return null;
     }
 
-    const averageRating = evaluations.reduce((sum, eval) => sum + eval.overallRating, 0) / evaluations.length;
+    const averageRating = evaluations.reduce((sum, evaluation) => sum + evaluation.overallRating, 0) / evaluations.length;
     
     const topPerformers = evaluations
-      .filter(eval => eval.overallRating >= 8)
-      .map(eval => eval.teacherId);
+      .filter(evaluation => evaluation.overallRating >= 8)
+      .map(evaluation => evaluation.teacherId);
 
     const improvementNeeded = evaluations
-      .filter(eval => eval.overallRating < 6)
-      .map(eval => eval.teacherId);
+      .filter(evaluation => evaluation.overallRating < 6)
+      .map(evaluation => evaluation.teacherId);
 
     return {
       averageRating: Math.round(averageRating * 100) / 100,
