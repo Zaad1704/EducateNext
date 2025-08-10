@@ -89,10 +89,13 @@ export const validateStudentEnrollment = [
   handleValidationErrors
 ];
 
-// Grade validation
+// Enhanced grade validation
 export const validateGrade = [
   body('studentId')
     .custom((value) => {
+      if (!value || typeof value !== 'string') {
+        throw new Error('Student ID is required');
+      }
       if (!mongoose.Types.ObjectId.isValid(value)) {
         throw new Error('Invalid student ID format');
       }
@@ -100,38 +103,107 @@ export const validateGrade = [
     }),
   body('subjectId')
     .custom((value) => {
+      if (!value || typeof value !== 'string') {
+        throw new Error('Subject ID is required');
+      }
       if (!mongoose.Types.ObjectId.isValid(value)) {
         throw new Error('Invalid subject ID format');
       }
       return true;
     }),
-  body('grade')
-    .isFloat({ min: 0, max: 100 })
-    .withMessage('Grade must be a number between 0 and 100'),
-  body('gradingPeriod')
-    .isIn(['midterm', 'final', 'quiz', 'assignment', 'project'])
-    .withMessage('Invalid grading period'),
-  handleValidationErrors
-];
-
-// Payment validation
-export const validatePayment = [
-  body('amount')
-    .isFloat({ min: 0.01 })
-    .withMessage('Amount must be a positive number'),
-  body('currency')
-    .isIn(['USD', 'EUR', 'GBP', 'CAD'])
-    .withMessage('Invalid currency'),
-  body('paymentMethod')
-    .isIn(['credit_card', 'debit_card', 'bank_transfer', 'cash'])
-    .withMessage('Invalid payment method'),
-  body('studentId')
+  body('classroomId')
     .custom((value) => {
+      if (!value || typeof value !== 'string') {
+        throw new Error('Classroom ID is required');
+      }
       if (!mongoose.Types.ObjectId.isValid(value)) {
-        throw new Error('Invalid student ID format');
+        throw new Error('Invalid classroom ID format');
       }
       return true;
     }),
+  body('academicYear')
+    .isLength({ min: 4, max: 9 })
+    .matches(/^\d{4}(-\d{4})?$/)
+    .withMessage('Academic year must be in format YYYY or YYYY-YYYY'),
+  body('semester')
+    .isIn(['fall', 'spring', 'summer', '1', '2', '3'])
+    .withMessage('Invalid semester'),
+  body('gradeType')
+    .isIn(['midterm', 'final', 'quiz', 'assignment', 'project', 'participation', 'homework'])
+    .withMessage('Invalid grade type'),
+  body('title')
+    .isLength({ min: 3, max: 100 })
+    .matches(/^[a-zA-Z0-9\s\-_.,()]+$/)
+    .withMessage('Title must be 3-100 characters with valid characters only'),
+  body('maxMarks')
+    .isFloat({ min: 1, max: 1000 })
+    .withMessage('Max marks must be between 1 and 1000'),
+  body('obtainedMarks')
+    .isFloat({ min: 0 })
+    .custom((value, { req }) => {
+      if (value > req.body.maxMarks) {
+        throw new Error('Obtained marks cannot exceed max marks');
+      }
+      return true;
+    })
+    .withMessage('Obtained marks must be valid'),
+  body('date')
+    .isISO8601()
+    .custom((value) => {
+      const date = new Date(value);
+      const now = new Date();
+      const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      const oneMonthFuture = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      
+      if (date < oneYearAgo || date > oneMonthFuture) {
+        throw new Error('Date must be within the last year and not more than one month in the future');
+      }
+      return true;
+    })
+    .withMessage('Invalid date'),
+  body('remarks')
+    .optional()
+    .isLength({ max: 500 })
+    .matches(/^[a-zA-Z0-9\s\-_.,()!?]+$/)
+    .withMessage('Remarks must be under 500 characters with valid characters only'),
+  body('weightage')
+    .optional()
+    .isFloat({ min: 0.1, max: 10 })
+    .withMessage('Weightage must be between 0.1 and 10'),
+  handleValidationErrors
+];
+
+// Enhanced payment validation
+export const validatePayment = [
+  body('feeBillId')
+    .custom((value) => {
+      if (!value || typeof value !== 'string') {
+        throw new Error('Fee bill ID is required');
+      }
+      if (!mongoose.Types.ObjectId.isValid(value)) {
+        throw new Error('Invalid fee bill ID format');
+      }
+      return true;
+    }),
+  body('amountPaid')
+    .isFloat({ min: 0.01, max: 1000000 })
+    .withMessage('Amount must be between 0.01 and 1,000,000'),
+  body('currency')
+    .optional()
+    .isIn(['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY'])
+    .withMessage('Invalid currency code'),
+  body('paymentMethod')
+    .isIn(['cash', 'credit_card', 'debit_card', 'bank_transfer', 'check', 'online'])
+    .withMessage('Invalid payment method'),
+  body('transactionId')
+    .optional()
+    .isLength({ min: 3, max: 100 })
+    .matches(/^[a-zA-Z0-9\-_]+$/)
+    .withMessage('Transaction ID must be 3-100 alphanumeric characters'),
+  body('receiptUrl')
+    .optional()
+    .isURL({ protocols: ['https'] })
+    .withMessage('Receipt URL must be a valid HTTPS URL'),
   handleValidationErrors
 ];
 
@@ -211,21 +283,176 @@ export const validateCMSContent = [
   handleValidationErrors
 ];
 
-// File upload validation
-export const validateFileUpload = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
+// Enhanced file upload validation
+export const validateFileUpload = async (req: Request, res: Response, next: NextFunction) => {
+  const clientIp = req.ip;
+  const userAgent = req.get('User-Agent');
+  const userId = req.user?.id;
+  const institutionId = req.user?.institutionId;
 
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
-  if (!allowedTypes.includes(req.file.mimetype)) {
-    return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, GIF, and PDF files are allowed.' });
-  }
+  try {
+    if (!req.file) {
+      await new AuditLog({
+        userId,
+        institutionId,
+        action: 'FILE_UPLOAD_NO_FILE',
+        resource: 'file_upload',
+        method: req.method,
+        url: req.originalUrl,
+        ip: clientIp,
+        userAgent,
+        success: false,
+        errorMessage: 'No file provided in upload request',
+        sensitiveData: false
+      }).save().catch(err => console.error('Failed to log file upload error:', err));
+      
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
 
-  const maxSize = 5 * 1024 * 1024; // 5MB
-  if (req.file.size > maxSize) {
-    return res.status(400).json({ error: 'File size too large. Maximum size is 5MB.' });
-  }
+    // Enhanced file type validation
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      await new AuditLog({
+        userId,
+        institutionId,
+        action: 'FILE_UPLOAD_INVALID_TYPE',
+        resource: 'file_upload',
+        method: req.method,
+        url: req.originalUrl,
+        ip: clientIp,
+        userAgent,
+        success: false,
+        errorMessage: `Invalid file type: ${req.file.mimetype}`,
+        sensitiveData: false,
+        metadata: {
+          filename: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size
+        }
+      }).save().catch(err => console.error('Failed to log file type error:', err));
+      
+      return res.status(400).json({ 
+        error: 'Invalid file type. Only JPEG, PNG, and PDF files are allowed.',
+        allowedTypes
+      });
+    }
 
-  next();
+    // Enhanced size validation
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (req.file.size > maxSize) {
+      await new AuditLog({
+        userId,
+        institutionId,
+        action: 'FILE_UPLOAD_SIZE_EXCEEDED',
+        resource: 'file_upload',
+        method: req.method,
+        url: req.originalUrl,
+        ip: clientIp,
+        userAgent,
+        success: false,
+        errorMessage: `File size exceeded: ${req.file.size} bytes`,
+        sensitiveData: false,
+        metadata: {
+          filename: req.file.originalname,
+          size: req.file.size,
+          maxSize
+        }
+      }).save().catch(err => console.error('Failed to log file size error:', err));
+      
+      return res.status(400).json({ 
+        error: 'File size too large. Maximum size is 2MB.',
+        maxSize: '2MB',
+        receivedSize: `${Math.round(req.file.size / 1024)}KB`
+      });
+    }
+
+    // Filename validation
+    const filename = req.file.originalname;
+    if (!/^[a-zA-Z0-9\s\-_\.()]+$/.test(filename)) {
+      return res.status(400).json({ 
+        error: 'Invalid filename. Only alphanumeric characters, spaces, hyphens, underscores, dots, and parentheses are allowed.' 
+      });
+    }
+
+    // File extension validation
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.pdf'];
+    const fileExtension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+    if (!allowedExtensions.includes(fileExtension)) {
+      return res.status(400).json({ 
+        error: 'Invalid file extension.',
+        allowedExtensions
+      });
+    }
+
+    // Log successful file validation
+    await new AuditLog({
+      userId,
+      institutionId,
+      action: 'FILE_UPLOAD_VALIDATED',
+      resource: 'file_upload',
+      method: req.method,
+      url: req.originalUrl,
+      ip: clientIp,
+      userAgent,
+      success: true,
+      errorMessage: null,
+      sensitiveData: false,
+      metadata: {
+        filename: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      }
+    }).save().catch(err => console.error('Failed to log file validation:', err));
+
+    next();
+  } catch (error: any) {
+    console.error('File validation error:', error);
+    res.status(500).json({ error: 'File validation failed' });
+  }
 };
+
+// QR code validation
+export const validateQRCode = [
+  body('data')
+    .isLength({ min: 10, max: 500 })
+    .matches(/^[a-zA-Z0-9\-_:.,/]+$/)
+    .withMessage('QR code data must be 10-500 characters with valid characters only'),
+  body('type')
+    .isIn(['student', 'teacher', 'classroom', 'attendance'])
+    .withMessage('Invalid QR code type'),
+  body('expiresAt')
+    .optional()
+    .isISO8601()
+    .custom((value) => {
+      if (value && new Date(value) <= new Date()) {
+        throw new Error('Expiration date must be in the future');
+      }
+      return true;
+    })
+    .withMessage('Invalid expiration date'),
+  handleValidationErrors
+];
+
+// Attendance validation
+export const validateAttendance = [
+  body('qrCode')
+    .isLength({ min: 10, max: 500 })
+    .matches(/^[a-zA-Z0-9\-_:.,/]+$/)
+    .withMessage('Invalid QR code format'),
+  body('location')
+    .optional()
+    .custom((value) => {
+      if (value && typeof value === 'object') {
+        const { latitude, longitude } = value;
+        if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+          throw new Error('Location must have valid latitude and longitude');
+        }
+        if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+          throw new Error('Invalid GPS coordinates');
+        }
+      }
+      return true;
+    })
+    .withMessage('Invalid location data'),
+  handleValidationErrors
+];
