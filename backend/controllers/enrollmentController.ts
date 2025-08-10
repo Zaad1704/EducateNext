@@ -1,59 +1,79 @@
 // backend/controllers/enrollmentController.ts
 import { Request, Response } from 'express';
-import Enrollment from '../models/Enrollment'; // Import Enrollment model
-import Student from '../models/Student'; // Import Student model for validation
-import Classroom from '../models/Classroom'; // Import Classroom model for validation
+import Enrollment from '../models/Enrollment';
+import Student from '../models/Student';
+import Classroom from '../models/Classroom';
 import { Types } from 'mongoose';
+import { AuditLog } from '../middleware/auditLogger';
 
 export const enrollStudent = async (req: Request, res: Response) => {
   const { studentId, classroomId } = req.body;
-  const institutionId = req.user?.institutionId; // Get institutionId from authenticated user
+  const institutionId = req.user?.institutionId;
 
   if (!studentId || !classroomId || !institutionId) {
-    return res.status(400).json({ message: 'Please provide studentId, classroomId, and ensure user is authenticated.' });
+    return res.status(400).json({ error: 'Missing required fields: studentId, classroomId' });
   }
 
   try {
-    // Validate ObjectId formats
-    if (!Types.ObjectId.isValid(studentId)) {
-        return res.status(400).json({ message: 'Invalid student ID format' });
-    }
-    if (!Types.ObjectId.isValid(classroomId)) {
-        return res.status(400).json({ message: 'Invalid classroom ID format' });
-    }
-    if (!Types.ObjectId.isValid(institutionId)) {
-        return res.status(400).json({ message: 'Invalid institution ID format' });
-    }
+    // Validate ObjectId formats with proper sanitization
+    const sanitizedStudentId = new Types.ObjectId(studentId);
+    const sanitizedClassroomId = new Types.ObjectId(classroomId);
+    const sanitizedInstitutionId = new Types.ObjectId(institutionId);
 
-    // Check if student and classroom exist within the same institution
-    const studentExists = await Student.findOne({ _id: studentId, institutionId: new Types.ObjectId(institutionId) });
+    // Check if student exists within the same institution
+    const studentExists = await Student.findOne({ 
+      _id: sanitizedStudentId, 
+      institutionId: sanitizedInstitutionId 
+    });
     if (!studentExists) {
-        return res.status(404).json({ message: 'Student not found or not in this institution.' });
-    }
-    const classroomExists = await Classroom.findOne({ _id: classroomId, institutionId: new Types.ObjectId(institutionId) });
-    if (!classroomExists) {
-        return res.status(404).json({ message: 'Classroom not found or not in this institution.' });
+      return res.status(404).json({ error: 'Student not found or not in this institution' });
     }
 
-    // Check if student is already enrolled in this classroom
+    // Check if classroom exists within the same institution
+    const classroomExists = await Classroom.findOne({ 
+      _id: sanitizedClassroomId, 
+      institutionId: sanitizedInstitutionId 
+    });
+    if (!classroomExists) {
+      return res.status(404).json({ error: 'Classroom not found or not in this institution' });
+    }
+
+    // Check for existing active enrollment
     const existingEnrollment = await Enrollment.findOne({
-      studentId: new Types.ObjectId(studentId),
-      classroomId: new Types.ObjectId(classroomId),
-      status: 'active', // Only check active enrollments
+      studentId: sanitizedStudentId,
+      classroomId: sanitizedClassroomId,
+      status: 'active'
     });
     if (existingEnrollment) {
-      return res.status(400).json({ message: 'Student is already actively enrolled in this classroom.' });
+      return res.status(400).json({ error: 'Student is already enrolled in this classroom' });
     }
 
+    // Create new enrollment
     const newEnrollment = new Enrollment({
-      studentId: new Types.ObjectId(studentId),
-      classroomId: new Types.ObjectId(classroomId),
-      institutionId: new Types.ObjectId(institutionId),
-      enrollmentDate: new Date(), // Set current date
-      status: 'active', // Default status
+      studentId: sanitizedStudentId,
+      classroomId: sanitizedClassroomId,
+      institutionId: sanitizedInstitutionId,
+      enrollmentDate: new Date(),
+      status: 'active'
     });
 
     const enrollment = await newEnrollment.save();
+
+    // Log successful enrollment
+    await new AuditLog({
+      userId: req.user?.id,
+      institutionId: req.user?.institutionId,
+      action: 'CREATE',
+      resource: 'enrollment',
+      resourceId: enrollment._id.toString(),
+      method: req.method,
+      url: req.originalUrl,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      success: true,
+      changes: { studentId, classroomId }
+    }).save().catch(err => console.error('Audit log error:', err));
+
     res.status(201).json({
       message: 'Student enrolled successfully',
       enrollment: {
@@ -62,30 +82,56 @@ export const enrollStudent = async (req: Request, res: Response) => {
         classroomId: enrollment.classroomId,
         institutionId: enrollment.institutionId,
         enrollmentDate: enrollment.enrollmentDate,
-      },
+        status: enrollment.status
+      }
     });
 
   } catch (error: any) {
-    console.error('Error enrolling student:', error.message);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    // Log error securely
+    await new AuditLog({
+      userId: req.user?.id,
+      institutionId: req.user?.institutionId,
+      action: 'CREATE',
+      resource: 'enrollment',
+      method: req.method,
+      url: req.originalUrl,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      success: false,
+      errorMessage: 'Enrollment creation failed'
+    }).save().catch(err => console.error('Audit log error:', err));
+
+    console.error('Enrollment error:', { message: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Failed to enroll student' });
   }
 };
 
 export const listEnrollments = async (req: Request, res: Response) => {
-  const institutionId = req.user?.institutionId; // Filter enrollments by authenticated user's institution
+  const institutionId = req.user?.institutionId;
 
   if (!institutionId) {
-    return res.status(401).json({ message: 'Not authorized: Institution ID not found in token.' });
+    return res.status(401).json({ error: 'Authentication required' });
   }
 
   try {
-    const enrollments = await Enrollment.find({ institutionId: new Types.ObjectId(institutionId) })
-                                        .populate('studentId', 'name generatedId') // Populate student name and ID
-                                        .populate('classroomId', 'name'); // Populate classroom name
+    const sanitizedInstitutionId = new Types.ObjectId(institutionId);
+    
+    const enrollments = await Enrollment.find({ 
+      institutionId: sanitizedInstitutionId 
+    })
+    .populate('studentId', 'name generatedId email')
+    .populate('classroomId', 'name capacity')
+    .select('studentId classroomId enrollmentDate status')
+    .sort({ enrollmentDate: -1 })
+    .limit(1000); // Prevent excessive data retrieval
 
-    res.status(200).json(enrollments);
+    res.status(200).json({
+      message: 'Enrollments retrieved successfully',
+      count: enrollments.length,
+      enrollments
+    });
   } catch (error: any) {
-    console.error('Error listing enrollments:', error.message);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('List enrollments error:', { message: error.message });
+    res.status(500).json({ error: 'Failed to retrieve enrollments' });
   }
 };

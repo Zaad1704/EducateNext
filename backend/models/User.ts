@@ -12,6 +12,11 @@ export interface IUser extends Document {
   govtIdUrl?: string;
   qualifications?: string[];
   certifications?: { title: string; fileUrl: string; issueDate: Date }[];
+  mfaEnabled?: boolean;
+  mfaSecret?: string;
+  lastLogin?: Date;
+  loginAttempts?: number;
+  lockUntil?: Date;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -37,6 +42,11 @@ const UserSchema = new Schema<IUser>(
         issueDate: Date,
       },
     ],
+    mfaEnabled: { type: Boolean, default: false },
+    mfaSecret: { type: String },
+    lastLogin: { type: Date },
+    loginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Date }
   },
   { timestamps: true }
 );

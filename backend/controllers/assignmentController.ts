@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
 import Assignment from '../models/Assignment';
 import { Types } from 'mongoose';
+import { AuditLog } from '../middleware/auditLogger';
+import DOMPurify from 'isomorphic-dompurify';
 
 export const createAssignment = async (req: Request, res: Response) => {
-  const { 
-    subjectId, classroomId, title, description, type, 
-    maxMarks, dueDate, instructions, attachments 
-  } = req.body;
+  const { subjectId, classroomId, title, description, type, maxMarks, dueDate, instructions, attachments } = req.body;
   const teacherId = req.user?.id;
   const institutionId = req.user?.institutionId;
 
@@ -16,26 +15,39 @@ export const createAssignment = async (req: Request, res: Response) => {
       subjectId: new Types.ObjectId(subjectId),
       classroomId: new Types.ObjectId(classroomId),
       institutionId: new Types.ObjectId(institutionId),
-      title,
-      description,
+      title: DOMPurify.sanitize(title),
+      description: DOMPurify.sanitize(description),
       type,
       maxMarks,
       dueDate: new Date(dueDate),
-      instructions,
+      instructions: DOMPurify.sanitize(instructions),
       attachments: attachments || [],
       isPublished: false,
     });
 
     await assignment.save();
 
+    await new AuditLog({
+      userId: req.user?.id,
+      institutionId: req.user?.institutionId,
+      action: 'CREATE',
+      resource: 'assignment',
+      resourceId: assignment._id.toString(),
+      method: req.method,
+      url: req.originalUrl,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      success: true
+    }).save().catch(err => console.error('Audit log error:', err));
+
     res.status(201).json({
       message: 'Assignment created successfully',
-      assignment,
+      assignment
     });
 
   } catch (error: any) {
-    console.error('Error creating assignment:', error.message);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Assignment creation error:', { message: error.message });
+    res.status(500).json({ error: 'Failed to create assignment' });
   }
 };
 
@@ -54,13 +66,14 @@ export const getAssignments = async (req: Request, res: Response) => {
       .populate('teacherId', 'name')
       .populate('subjectId', 'name code')
       .populate('classroomId', 'name')
-      .sort({ dueDate: -1 });
+      .sort({ dueDate: -1 })
+      .limit(100);
 
-    res.status(200).json(assignments);
+    res.status(200).json({ assignments, count: assignments.length });
 
   } catch (error: any) {
-    console.error('Error fetching assignments:', error.message);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Assignment fetch error:', { message: error.message });
+    res.status(500).json({ error: 'Failed to fetch assignments' });
   }
 };
 
@@ -70,9 +83,9 @@ export const submitAssignment = async (req: Request, res: Response) => {
   const studentId = req.user?.id;
 
   try {
-    const assignment = await Assignment.findById(assignmentId);
+    const assignment = await Assignment.findById(new Types.ObjectId(assignmentId));
     if (!assignment) {
-      return res.status(404).json({ message: 'Assignment not found' });
+      return res.status(404).json({ error: 'Assignment not found' });
     }
 
     const now = new Date();
@@ -99,11 +112,11 @@ export const submitAssignment = async (req: Request, res: Response) => {
 
     res.status(200).json({
       message: 'Assignment submitted successfully',
-      status,
+      status
     });
 
   } catch (error: any) {
-    console.error('Error submitting assignment:', error.message);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Assignment submission error:', { message: error.message });
+    res.status(500).json({ error: 'Failed to submit assignment' });
   }
 };

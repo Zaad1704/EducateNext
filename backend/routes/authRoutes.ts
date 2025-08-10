@@ -1,9 +1,17 @@
 import { Router } from 'express';
 import { registerUser, loginUser } from '../controllers/authController';
+import { validateUserRegistration, validateUserLogin } from '../middleware/validation';
+import { authRateLimit } from '../middleware/security';
 
 const router = Router();
 
-router.post('/register', registerUser);
-router.post('/login', loginUser);
+// Apply strict rate limiting to auth routes
+router.use(authRateLimit);
+
+// Registration with validation
+router.post('/register', validateUserRegistration, registerUser);
+
+// Login with validation
+router.post('/login', validateUserLogin, loginUser);
 
 export default router;

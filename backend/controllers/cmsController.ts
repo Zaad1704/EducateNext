@@ -4,6 +4,8 @@ import Institution from '../models/Institution';
 import Teacher from '../models/Teacher';
 import { generateSubdomain } from '../services/cmsService';
 import { Types } from 'mongoose';
+import { AuditLog } from '../middleware/auditLogger';
+import DOMPurify from 'isomorphic-dompurify';
 
 export const createSite = async (req: Request, res: Response) => {
   const { template, content, seo } = req.body;
@@ -149,19 +151,27 @@ export const updateSite = async (req: Request, res: Response) => {
   const institutionId = req.user?.institutionId;
 
   try {
+    const sanitizedContent = content ? sanitizeContent(content) : undefined;
+    const sanitizedSeo = seo ? {
+      title: DOMPurify.sanitize(seo.title || ''),
+      description: DOMPurify.sanitize(seo.description || ''),
+      keywords: Array.isArray(seo.keywords) ? seo.keywords.map((k: string) => DOMPurify.sanitize(k)) : [],
+      ogImage: DOMPurify.sanitize(seo.ogImage || '')
+    } : undefined;
+
     const site = await SiteContent.findOneAndUpdate(
       { institutionId: new Types.ObjectId(institutionId) },
       {
-        ...(content && { content }),
-        ...(seo && { seo }),
+        ...(sanitizedContent && { content: sanitizedContent }),
+        ...(sanitizedSeo && { seo: sanitizedSeo }),
         ...(template && { template }),
-        ...(customCSS !== undefined && { customCSS })
+        ...(customCSS !== undefined && { customCSS: DOMPurify.sanitize(customCSS) })
       },
       { new: true }
     );
 
     if (!site) {
-      return res.status(404).json({ message: 'Website not found' });
+      return res.status(404).json({ error: 'Website not found' });
     }
 
     res.status(200).json({
@@ -170,10 +180,24 @@ export const updateSite = async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    console.error('Error updating site:', error.message);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Site update error:', { message: error.message });
+    res.status(500).json({ error: 'Failed to update website' });
   }
 };
+
+function sanitizeContent(content: any): any {
+  if (typeof content === 'string') {
+    return DOMPurify.sanitize(content);
+  }
+  if (typeof content === 'object' && content !== null) {
+    const sanitized: any = {};
+    for (const key in content) {
+      sanitized[key] = sanitizeContent(content[key]);
+    }
+    return sanitized;
+  }
+  return content;
+}
 
 export const publishSite = async (req: Request, res: Response) => {
   const institutionId = req.user?.institutionId;

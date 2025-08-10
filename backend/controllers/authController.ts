@@ -4,7 +4,9 @@ import User from '../models/User';
 import bcrypt from 'bcryptjs';
 import Institution from '../models/Institution';
 import { Types } from 'mongoose';
-import jwt from 'jsonwebtoken'; // Import jsonwebtoken
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { validationResult } from 'express-validator';
 
 export const registerUser = async (req: Request, res: Response) => {
   const { name, email, password, role, institutionId } = req.body;
@@ -55,14 +57,25 @@ export const registerUser = async (req: Request, res: Response) => {
         },
     };
 
+    // Validate JWT_SECRET exists
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error('JWT_SECRET not configured');
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+
     jwt.sign(
         payload,
-        process.env.JWT_SECRET || 'supersecretjwtkey', // Use JWT_SECRET from env or a fallback
-        { expiresIn: '1h' }, // Token expires in 1 hour
+        jwtSecret,
+        { 
+          expiresIn: '1h',
+          issuer: 'educatenext',
+          audience: 'educatenext-users'
+        },
         (err, token) => {
             if (err) {
                 console.error('JWT signing error:', err);
-                return res.status(500).json({ message: 'Error generating token' });
+                return res.status(500).json({ message: 'Authentication error' });
             }
             return res.status(201).json({
                 message: 'User registered successfully',
@@ -114,15 +127,26 @@ export const loginUser = async (req: Request, res: Response) => {
       },
     };
 
+    // Validate JWT_SECRET exists
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error('JWT_SECRET not configured');
+      return res.status(500).json({ message: 'Server configuration error' });
+    }
+
     // Sign the token
     jwt.sign(
       payload,
-      process.env.JWT_SECRET || 'supersecretjwtkey', // Use JWT_SECRET from env or a fallback
-      { expiresIn: '1h' }, // Token expires in 1 hour
+      jwtSecret,
+      { 
+        expiresIn: '1h',
+        issuer: 'educatenext',
+        audience: 'educatenext-users'
+      },
       (err, token) => {
         if (err) {
           console.error('JWT signing error:', err);
-          return res.status(500).json({ message: 'Error generating token' });
+          return res.status(500).json({ message: 'Authentication error' });
         }
         return res.json({
           message: 'Logged in successfully',
